@@ -6,6 +6,35 @@ from pyspark import SparkConf, SparkContext
 from numpy import array
 import sys
 
+class NewHireDecisionMaker():
+    def __init__(self):
+        self.conf = SparkConf().setMaster("local").setAppName("NewHireDecisionMaker")
+        self.sc = SparkContext(conf = self.conf)
+
+    def load_training_data(self, training_data_file):
+        raw_data = self.sc.textFile(training_data_file)
+        header = raw_data.first()
+        raw_data = raw_data.filter(lambda x:x != header)
+        csv_data = raw_data.map(lambda x: x.split(","))
+
+        # Convert these lists to LabeledPoints
+        self.training_data = csv_data.map(createLabeledPoints)
+
+    def make_model(self):
+        self.model = DecisionTree.trainClassifier(self.training_data, numClasses=2,
+                                     categoricalFeaturesInfo={1:2, 3:4, 4:2, 5:2},
+                                     impurity='gini', maxDepth=5, maxBins=32)
+
+    def make_predictions(self, test_data):
+        transformed_test_data = self.sc.parallelize(test_data)
+        return self.model.predict(transformed_test_data)
+        
+    def show_model(self):
+        return self.model.toDebugString()
+
+"""
+Supporting code
+"""
 def binary(YN):
     if (YN == 'Y'):
         return 1
@@ -36,47 +65,35 @@ def createLabeledPoints(fields):
     return LabeledPoint(hired, array([yearsExperience, employed,
         previousEmployers, educationLevel, topTier, interned]))
 
-class NewHireDecisionMaker():
-    def __init__(self):
-        self.conf = SparkConf().setMaster("local").setAppName("NewHireDecisionMaker")
-        self.sc = SparkContext(conf = self.conf)
 
-    def load_traing_data(self, training_data_file):
-        raw_data = self.sc.textFile(training_data_file)
-        header = raw_data.first()
-        raw_data = raw_data.filter(lambda x:x != header)
-        csv_data = raw_data.map(lambda x: x.split(","))
-
-        # Convert these lists to LabeledPoints
-        self.training_data = csv_data.map(createLabeledPoints)
-
-    def make_model(self):
-        self.model = DecisionTree.trainClassifier(self.training_data, numClasses=2,
-                                     categoricalFeaturesInfo={1:2, 3:4, 4:2, 5:2},
-                                     impurity='gini', maxDepth=5, maxBins=32)
-
-    def make_predictions(self, test_data):
-        transformed_test_data = self.sc.parallelize(test_data)
-        return self.model.predict(transformed_test_data)
-        
-    def show_model(self):
-        return self.model.toDebugString()
-
-def main(argv):
-    new_hire = NewHireDecisionMaker()
-    new_hire.load_traing_data(argv[0])
-    new_hire.make_model()
-
-    test_data = [ array([10, 1, 3, 1, 0, 0])]
-    predictions = new_hire.make_predictions(test_data)
-    
-    print('Hire prediction:')
+def print_result(predictions):
+    print('Hire predictions:')
 
     for result in predictions.collect():
         print(">>>: " + str(result))
 
+def print_model(model):
     print("\n*** Model ***")
-    print(new_hire.show_model())
+    print(model)
+
+"""
+main program starts here ...
+- create decision maker object
+- load training data (assuming data has been cleansed)
+- make model
+- make predictions
+- print result
+- print model
+"""
+def main(argv):
+    new_hire = NewHireDecisionMaker()
+    new_hire.load_training_data(argv[0])
+    new_hire.make_model()
+
+    test_data = [ array([10, 1, 3, 1, 0, 0])]
+
+    print_result(new_hire.make_predictions(test_data))    
+    print_model(new_hire.show_model())
 
 if __name__ == '__main__':
     main(sys.argv[1:])

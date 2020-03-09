@@ -10,12 +10,22 @@ This repository contains code that is extracted from this repository:
 ## Program
 
 `NewHireDecisionMaker` is the Machine Learning (ML) using Apache Spark ML library (MLlib).
+Main activities are:
 
-## Instructions
+- create NewHireDecisionMaker object
+- load training data
+- make a model
+- create a test data
+- make a prediction on test data
+- print the result.
+
+## Preparation to run
 
 - Start up Hadoop cluster
 - Copy `PastHires.csv` file into HDFS
-- Run the program
+
+
+## Run the program
 
 ```bash
 
